@@ -5,23 +5,26 @@ from math import pi
 from statistics import median
 import math
 from OrbitalCam import OrbitalController
+from enum import Enum
 
 str_error = "The robot is not connected"
 
+class AppState(Enum):
+	PHYSICAL_INTERACTION = 1
+	UI_INTERACTION = 2
+	AUTOMATIC_DANCE = 3
+
+current_state = AppState.AUTOMATIC_DANCE
+
 # helpers
-
-
 def clamp(v, v_min, v_max):
 	return max(v_min, min(v, v_max))
-
 
 def rangeadjust_clamp(k, a, b, u, v):
 	return rangeadjust(clamp(k, a, b), a, b, u, v)
 
-
 def rangeadjust(k, a, b, u, v):
 	return (k - a) / (b - a) * (v - u) + u
-
 
 def lerp(k, a, b):
 	return a + (b - a) * k
@@ -56,7 +59,7 @@ hg.RenderInit(win)
 hg.RenderReset(res_x, res_y, hg.RF_MSAA8X | hg.RF_FlipAfterRender |
 			   hg.RF_FlushAfterRender | hg.RF_MaxAnisotropy)
 
-hg.AddAssetsFolder("resources_compiled")
+hg.AddAssetsFolder("../resources_compiled")
 
 # AAA render params
 aaa_config = hg.ForwardPipelineAAAConfig()
@@ -179,6 +182,7 @@ app_clock = 0
 app_status = "dancing"
 
 
+#AUTOMATIC DANCE
 def toggle_button(label, value, x, y):
 	global has_switched
 	mat = hg.TransformationMat4(
@@ -233,9 +237,11 @@ def toggle_button(label, value, x, y):
 	return value
 
 
+#AUTOMATIC DANCE
 buttonlist = [[100, res_y - 80]]
 
 
+#AUTOMATIC DANCE / Sert a quoi ? Impression qu'il essaye de faire en sorte de modifier les valeurs des moteurs
 def is_switching():
 	for i in buttonlist:
 		mat = hg.TransformationMat4(
@@ -318,6 +324,8 @@ while not hg.ReadKeyboard().Key(hg.K_Escape):
 	send_dt = 1/10  # send information to the poppy every send_dt
 
 	# get values from the real robot
+
+	#AUTOMATIC DANCE : requests that give robot new positions
 	if compliance_mode:
 		timer_requests_not_overload += hg.time_to_sec_f(dt)
 		if timer_requests_not_overload > send_dt:
@@ -366,6 +374,7 @@ while not hg.ReadKeyboard().Key(hg.K_Escape):
 			(hg_m["v"] - v) / (hg.time_to_sec_f(dt)**2), -9999, 9999))
 		hg_m["v"] = v
 
+		#AUTOMATIC DANCE
 		if compliance_mode and compliance_lerp:
 			adjusted_time = rangeadjust(hg.GetClock(
 			), hg_motors_previous[id][1], hg_motors_previous[id][1] + hg.time_from_sec_f(send_dt), 0, 1)
