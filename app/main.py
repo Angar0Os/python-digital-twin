@@ -9,13 +9,6 @@ from enum import Enum
 
 str_error = "The robot is not connected"
 
-class AppState(Enum):
-	PHYSICAL_INTERACTION = 1
-	UI_INTERACTION = 2
-	AUTOMATIC_DANCE = 3
-
-current_state = AppState.AUTOMATIC_DANCE
-
 # helpers
 def clamp(v, v_min, v_max):
 	return max(v_min, min(v, v_max))
@@ -52,6 +45,7 @@ mouseylist = []
 has_switched = False
 compliance_mode = False
 compliance_lerp = True
+ui_interaction_mode = False
 
 
 win = hg.NewWindow("Harfang - Poppy", res_x, res_y, 32)  # , hg.WV_Fullscreen)
@@ -181,16 +175,17 @@ hg.ImGuiInit(10, imgui_prg, imgui_img_prg)
 app_clock = 0
 app_status = "dancing"
 
-
-#AUTOMATIC DANCE
 def toggle_button(label, value, x, y):
 	global has_switched
+
+	#Target for user interaction
 	mat = hg.TransformationMat4(
 		hg.Vec3(x, y, 1), hg.Vec3(0, 0, 0), hg.Vec3(1, 1, 1))
 	pos = hg.GetT(mat)
 	axis_x = hg.GetX(mat) * 56
 	axis_y = hg.GetY(mat) * 24
 
+	#Rectangular zone drawn on scren who depends on var "value"
 	toggle_vtx = hg.Vertices(vtx_layout, 4)
 	toggle_vtx.Begin(0).SetPos(
 		pos - axis_x - axis_y).SetTexCoord0(hg.Vec2(0, 1)).End()
@@ -203,8 +198,9 @@ def toggle_button(label, value, x, y):
 	toggle_idx = [0, 3, 2, 0, 2, 1]
 
 	hg.DrawTriangles(view_id, toggle_idx, toggle_vtx, shader_for_plane, [], [
-		texture_on if value else texture_off], render_state_quad)
+	 	texture_on if value else texture_off], render_state_quad)
 
+	#if player click on interactive zone
 	if mouse.Down(hg.MB_0):
 		mousexlist.append(mouse.X())
 		mouseylist.append(mouse.Y())
@@ -213,6 +209,7 @@ def toggle_button(label, value, x, y):
 		mouseylist.clear()
 		has_switched = False
 
+	#Then code verify if player clicked many time to get median value from mouse positions
 	if len(mousexlist) > 20:
 		mousexlist.pop(0)
 	if len(mouseylist) > 20:
@@ -221,12 +218,15 @@ def toggle_button(label, value, x, y):
 	if len(mouseylist) > 0:
 		mouse_x = median(mousexlist)
 		mouse_y = median(mouseylist)
+
+		#if mouse is in rectancle zone defined by our vertices
 		if mouse_x > pos.x - axis_x.x and mouse_x < pos.x + axis_x.x and mouse_y > pos.y - axis_y.y and mouse_y < pos.y + axis_y.y and not has_switched:
 			value = True if not value else False
 			has_switched = True
 			mousexlist.clear()
 			mouseylist.clear()
 
+	#This is the text asociated to the interactive zone next to it 
 	mat = hg.TranslationMat4(hg.Vec3(pos.x + axis_x.x + 10, y - 10, 1))
 	hg.SetS(mat, hg.Vec3(1, -1, 1))
 	hg.DrawText(view_id,
@@ -236,12 +236,8 @@ def toggle_button(label, value, x, y):
 				[font_color_white], [], text_render_state)
 	return value
 
-
-#AUTOMATIC DANCE
 buttonlist = [[100, res_y - 80]]
 
-
-#AUTOMATIC DANCE / Sert a quoi ? Impression qu'il essaye de faire en sorte de modifier les valeurs des moteurs
 def is_switching():
 	for i in buttonlist:
 		mat = hg.TransformationMat4(
@@ -325,7 +321,6 @@ while not hg.ReadKeyboard().Key(hg.K_Escape):
 
 	# get values from the real robot
 
-	#AUTOMATIC DANCE : requests that give robot new positions
 	if compliance_mode:
 		timer_requests_not_overload += hg.time_to_sec_f(dt)
 		if timer_requests_not_overload > send_dt:
@@ -374,7 +369,6 @@ while not hg.ReadKeyboard().Key(hg.K_Escape):
 			(hg_m["v"] - v) / (hg.time_to_sec_f(dt)**2), -9999, 9999))
 		hg_m["v"] = v
 
-		#AUTOMATIC DANCE
 		if compliance_mode and compliance_lerp:
 			adjusted_time = rangeadjust(hg.GetClock(
 			), hg_motors_previous[id][1], hg_motors_previous[id][1] + hg.time_from_sec_f(send_dt), 0, 1)
@@ -582,6 +576,8 @@ while not hg.ReadKeyboard().Key(hg.K_Escape):
 	if compliance_mode:
 		compliance_lerp = toggle_button(
 		"Motion Interpolation ON" if compliance_lerp else "Motion Interpolation OFF", compliance_lerp, 100, res_y - 180)
+	ui_interaction_mode = toggle_button(
+		"Interaction Mode ON" if ui_interaction_mode else "Interaction Mode OFF", ui_interaction_mode, 100, res_y - 180)
 
 	view_id += 1
 
