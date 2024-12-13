@@ -366,8 +366,8 @@ while not hg.ReadKeyboard().Key(hg.K_Escape):
 			if mouse.Down(hg.MB_0):
 				if mouse_x > inter_sx and mouse_x < inter_ex and mouse_y > inter_sy and mouse_y < inter_ey:
 					hg_m = hg_motors[i]
-					mouse_pos = rangeadjust(mouse_x, 0, WIDTH, hg_m["lower_limit"], hg_m["upper_limit"]) #rename
-					hg_m["v"] = mouse_pos
+					new_motor_angle = rangeadjust(mouse_x, 0, WIDTH, hg_m["lower_limit"], hg_m["upper_limit"]) #rename
+					hg_m["v"] = new_motor_angle
 
 	if not compliance_mode and not ui_interaction_mode:
 		app_status = "dancing"
