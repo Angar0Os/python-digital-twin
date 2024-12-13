@@ -1,7 +1,6 @@
 import harfang as hg
 import requests
 import socket
-from math import pi
 from statistics import median
 import math
 from OrbitalCam import OrbitalController
@@ -22,7 +21,6 @@ def rangeadjust(k, a, b, u, v):
 def lerp(k, a, b):
 	return a + (b - a) * k
 
-
 # look for the poppy on the network
 url = ""
 try:
@@ -38,7 +36,7 @@ keyboard = hg.Keyboard()
 mouse = hg.Mouse()
 
 res_x, res_y = 1920, 1080
-
+WIDTH, HEIGHT = res_x, res_y
 # initialize lists and variables for toggle button (swipe style)
 mousexlist = []
 mouseylist = []
@@ -321,32 +319,87 @@ while not hg.ReadKeyboard().Key(hg.K_Escape):
 
 	# get values from the real robot
 
+	if ui_interaction_mode:
+		compliance_mode = False
+		app_status = "None"
+
+		if mouse.Down(hg.MB_0):
+			mousexlist.append(mouse.X())
+			mouseylist.append(mouse.Y())
+		else:
+			mousexlist.clear()
+			mouseylist.clear()
+			has_switched = False
+
+		if len(mousexlist) > 20:
+			mousexlist.pop(0)
+		if len(mouseylist) > 20:
+			mouseylist.pop(0)
+
+		if len(mouseylist) > 0:
+			mouse_x = median(mousexlist)
+			mouse_y = median(mouseylist)
+
+		Sx = 0.0
+		Sy = 0.0
+
+		Ex = WIDTH
+
+		interactable_rectangles = []
+
+		for i in range(1, 7):
+
+			Ey = (HEIGHT / 6) * i
+
+			rectangle = hg.Rect(Sx, Sy, Ex, Ey)
+			interactable_rectangles.append(rectangle)
+
+			Sy = Ey
+
+
+		for i in range(len(interactable_rectangles)):
+			inter_sx =	 interactable_rectangles[i].sx
+			inter_sy = interactable_rectangles[i].sy
+			inter_ex = interactable_rectangles[i].ex
+			inter_ey = interactable_rectangles[i].ey
+
+			if mouse.Down(hg.MB_0):
+				if mouse_x > inter_sx and mouse_x < inter_ex and mouse_y > inter_sy and mouse_y < inter_ey:
+					hg_m = hg_motors[i]
+					mouse_pos = rangeadjust(mouse_x, 0, WIDTH, hg_m["lower_limit"], hg_m["upper_limit"]) #rename
+					hg_m["v"] = mouse_pos
+
+	if not compliance_mode and not ui_interaction_mode:
+		app_status = "dancing"
 	if compliance_mode:
 		timer_requests_not_overload += hg.time_to_sec_f(dt)
-		if timer_requests_not_overload > send_dt:
-			timer_requests_not_overload = 0
+		ui_interaction_mode = False
+	if timer_requests_not_overload > send_dt:
+		timer_requests_not_overload = 0
 
-			if url != "":
-				try:
-					r = requests.get(url + "/motors/get/positions").text
-					for id, m in enumerate(hg_motors):
-						hg_m = hg_motors[id]
-						hg_motors_previous[id][0] = hg_m["v"]
-						hg_motors_previous[id][1] = hg.GetClock()
-						hg_m["v"] = float(r.split(';')[id])
-						if id == 5:
-							# send negative value for claw motor angle ()
-							hg_m["v"] = -float(r.split(';')[id])
+		if url != "":
+			try:
+				r = requests.get(url + "/motors/get/positions").text
+				for id, m in enumerate(hg_motors):
+					hg_m = hg_motors[id]
+					hg_motors_previous[id][0] = hg_m["v"]
+					hg_motors_previous[id][1] = hg.GetClock()
+					hg_m["v"] = float(r.split(';')[id])
+					if id == 5:
+						# send negative value for claw motor angle ()
+						hg_m["v"] = -float(r.split(';')[id])
 
-				except:
-					print("Robot not connected " + url)
+			except:
+				print("Robot not connected " + url)
 
 	# set 3D mesh with the current motor pos
+
+	v = 0
 	for id, m in enumerate(hg_motors):
 		hg_m = hg_motors[id]
 
 		# check if we are getting value from the real root
-		if compliance_mode:
+		if compliance_mode or ui_interaction_mode:
 			v = hg_m["v"]
 		else:  # sending value to the real robot
 			if app_status == "dancing":
@@ -378,22 +431,22 @@ while not hg.ReadKeyboard().Key(hg.K_Escape):
 				# set the position to the virtual robot
 				rot = hg.Vec3(0, 0, 0)
 				if hg_m["axis"] == "X":
-					rot = hg.Vec3(-new_v*pi/180.0, 0, 0)
+					rot = hg.Vec3(-new_v*math.pi/180.0, 0, 0)
 				elif hg_m["axis"] == "Y":
-					rot = hg.Vec3(0, -new_v*pi/180.0, 0)
+					rot = hg.Vec3(0, -new_v*math.pi/180.0, 0)
 				elif hg_m["axis"] == "Z":
-					rot = hg.Vec3(-1.57, 0, -new_v*pi/180.0)
+					rot = hg.Vec3(-1.57, 0, -new_v*math.pi/180.0)
 
 				hg_m["n"].GetTransform().SetRot(rot)
 
 		else:
 			rot = hg.Vec3(0, 0, 0)
 			if hg_m["axis"] == "X":
-				rot = hg.Vec3(-v*pi/180.0, 0, 0)
+				rot = hg.Vec3(-v*math.pi/180.0, 0, 0)
 			elif hg_m["axis"] == "Y":
-				rot = hg.Vec3(0, -v*pi/180.0, 0)
+				rot = hg.Vec3(0, -v*math.pi/180.0, 0)
 			elif hg_m["axis"] == "Z":
-				rot = hg.Vec3(-1.57, 0, -v*pi/180.0)
+				rot = hg.Vec3(-1.57, 0, -v*math.pi/180.0)
 
 			hg_m["n"].GetTransform().SetRot(rot)
 
@@ -577,7 +630,7 @@ while not hg.ReadKeyboard().Key(hg.K_Escape):
 		compliance_lerp = toggle_button(
 		"Motion Interpolation ON" if compliance_lerp else "Motion Interpolation OFF", compliance_lerp, 100, res_y - 180)
 	ui_interaction_mode = toggle_button(
-		"Interaction Mode ON" if ui_interaction_mode else "Interaction Mode OFF", ui_interaction_mode, 100, res_y - 180)
+		"Interaction Mode ON" if ui_interaction_mode else "Interaction Mode OFF", ui_interaction_mode, 100, res_y - 280)
 
 	view_id += 1
 
